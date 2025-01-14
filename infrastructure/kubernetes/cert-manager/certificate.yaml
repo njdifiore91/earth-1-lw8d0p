@@ -1,0 +1,53 @@
+apiVersion: cert-manager.io/v1  # cert-manager.io v1.9+
+kind: Certificate
+metadata:
+  name: api-gateway-tls
+  namespace: matter-platform
+  labels:
+    app: matter-satellite-platform
+    component: cert-manager
+    environment: production
+  annotations:
+    cert-manager.io/issue-temporary-certificate: "true"  # Enable temporary cert during initial issuance
+    cert-manager.io/private-key-rotation-policy: "Always"  # Rotate private key on renewal
+    monitoring.matter.io/alert: "true"  # Enable certificate monitoring alerts
+spec:
+  secretName: api-gateway-tls
+  duration: 2160h  # 90 days - Let's Encrypt maximum validity period
+  renewBefore: 360h  # Renew 15 days before expiry
+  subject:
+    organizations:
+      - Matter Satellite Platform
+    organizationalUnits:
+      - Platform Engineering
+    countries:
+      - US
+  commonName: api.matter-platform.com
+  dnsNames:
+    - api.matter-platform.com
+    - api-internal.matter-platform.com  # Internal service mesh endpoint
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+  privateKey:
+    algorithm: RSA
+    size: 2048  # Industry standard key size
+    encoding: PKCS1  # Standard RSA key encoding
+    rotationPolicy: Always
+  keystores:
+    pkcs12:
+      create: true  # Create PKCS12 keystore for legacy compatibility
+      passwordSecretRef:
+        name: keystore-password
+        key: password
+  usages:
+    - server auth
+    - client auth  # Enable mutual TLS support
+  secretTemplate:
+    annotations:
+      monitoring.matter.io/scrape: "true"  # Enable secret monitoring
+      backup.matter.io/include: "true"  # Include in backup
+    labels:
+      security-tier: restricted
+      component: api-gateway
