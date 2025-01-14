@@ -1,0 +1,70 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": ["ES2022"],
+    "composite": true,
+    "declaration": true,
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "removeComments": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "paths": {
+      "@auth/*": ["auth-service/*"],
+      "@viz/*": ["visualization-service/*"],
+      "@gateway/*": ["api-gateway/*"],
+      "@shared/*": ["shared/*"]
+    },
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types"
+    ],
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.json"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "./auth-service"
+    },
+    {
+      "path": "./visualization-service"
+    },
+    {
+      "path": "./api-gateway"
+    }
+  ],
+  "ts-node": {
+    "transpileOnly": true,
+    "files": true
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
