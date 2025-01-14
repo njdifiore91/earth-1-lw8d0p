@@ -1,0 +1,75 @@
+[tool.poetry]
+name = "matter-backend"
+version = "1.0.0"
+description = "Matter satellite data platform backend services"
+authors = ["Matter Engineering Team"]
+python = "^3.11"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.95.0"  # High-performance async web framework
+uvicorn = "^0.21.0"  # ASGI server for FastAPI
+sqlalchemy = "^2.0.0"  # SQL toolkit and ORM
+geoalchemy2 = "^0.13.0"  # Geospatial extensions for SQLAlchemy
+shapely = "^2.0.0"  # Geometric operations library
+pyproj = "^3.5.0"  # Cartographic projections library
+redis = "^4.5.0"  # Redis client library
+pydantic = "^1.10.0"  # Data validation library
+prometheus-fastapi-instrumentator = "^5.9.0"  # Metrics instrumentation
+python-jose = "^3.3.0"  # JWT token handling
+numpy = "^1.24.0"  # Numerical computing library
+pandas = "^2.0.0"  # Data analysis library
+geopandas = "^0.13.0"  # Geospatial data analysis
+psycopg2-binary = "^2.9.6"  # PostgreSQL adapter
+python-dotenv = "^1.0.0"  # Environment variable management
+aioredis = "^2.0.0"  # Async Redis client
+httpx = "^0.24.0"  # Async HTTP client
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.0"  # Testing framework
+pytest-asyncio = "^0.21.0"  # Async test support
+pytest-cov = "^4.0.0"  # Test coverage reporting
+black = "^23.3.0"  # Code formatter
+isort = "^5.12.0"  # Import sorter
+mypy = "^1.3.0"  # Static type checker
+flake8 = "^6.0.0"  # Code linter
+bandit = "^1.7.0"  # Security linter
+safety = "^2.3.0"  # Dependency security checker
+
+[tool.poetry.scripts]
+test = "pytest"
+lint = "flake8 src tests"
+format = "black src tests && isort src tests"
+type-check = "mypy src"
+security-check = "bandit -r src && safety check"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = "src/**/*.py"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203"]
+exclude = [".git", "__pycache__", "build", "dist"]
+
+[build-system]
+requires = ["poetry-core>=1.5.0"]
+build-backend = "poetry.core.masonry.api"
