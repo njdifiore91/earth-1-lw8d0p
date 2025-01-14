@@ -1,0 +1,64 @@
+{
+  "name": "Matter Satellite Data Platform",
+  "short_name": "Matter",
+  "description": "Professional satellite data product matching platform for Earth observation requirements and collection planning",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1976d2",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "business",
+    "productivity",
+    "utilities",
+    "navigation"
+  ],
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "../src/assets/images/logo.svg",
+      "sizes": "512x512 384x384 192x192 152x152 144x144 128x128 96x96 72x72 48x48",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "shortcuts": [
+    {
+      "name": "New Search",
+      "url": "/search/new",
+      "description": "Start a new satellite data search"
+    },
+    {
+      "name": "Recent Searches",
+      "url": "/search/history",
+      "description": "View your recent searches"
+    }
+  ],
+  "share_target": {
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "kmlFile",
+          "accept": [
+            ".kml",
+            ".kmz",
+            "application/vnd.google-earth.kml+xml"
+          ]
+        }
+      ]
+    }
+  }
+}
