@@ -1,0 +1,140 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: matter-virtualservice
+  namespace: matter-platform
+  labels:
+    app: matter-satellite-platform
+    component: istio-routing
+    environment: production
+  annotations:
+    monitoring.matter.com/enabled: "true"
+    security.matter.com/policy-version: "v1"
+spec:
+  hosts:
+    - "api.matter-platform.com"
+  gateways:
+    - matter-gateway
+  http:
+    # Global CORS policy
+    - corsPolicy:
+        allowOrigins:
+          - exact: "https://matter-platform.com"
+        allowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowHeaders:
+          - Authorization
+          - Content-Type
+          - Accept
+          - Origin
+          - X-Requested-With
+        maxAge: "24h"
+        allowCredentials: true
+
+    # Auth Service Routes
+    - match:
+        - uri:
+            prefix: "/auth"
+        - uri:
+            prefix: "/oauth"
+        - uri:
+            prefix: "/login"
+      route:
+        - destination:
+            host: auth-service.matter-platform.svc.cluster.local
+            port:
+              number: 3000
+            subset: auth
+      timeout: 10s
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: "connect-failure,refused-stream,unavailable,cancelled,resource-exhausted"
+      fault:
+        delay:
+          percentage:
+            value: 0.1
+          fixedDelay: 7s
+
+    # Search Service Routes
+    - match:
+        - uri:
+            prefix: "/search"
+        - uri:
+            prefix: "/locations"
+      route:
+        - destination:
+            host: search-service.matter-platform.svc.cluster.local
+            port:
+              number: 8000
+            subset: search
+      timeout: 30s
+      retries:
+        attempts: 2
+        perTryTimeout: 5s
+        retryOn: "connect-failure,refused-stream,unavailable,cancelled,5xx"
+      headers:
+        request:
+          set:
+            x-request-type: search-api
+
+    # WebSocket Routes for Real-time Updates
+    - match:
+        - uri:
+            prefix: "/ws"
+        - uri:
+            prefix: "/socket.io"
+      route:
+        - destination:
+            host: search-service.matter-platform.svc.cluster.local
+            port:
+              number: 8000
+      websocketRoutes:
+        - fromRoute: true
+      timeout: 300s
+
+    # Default Route with Circuit Breaking
+    - match:
+        - uri:
+            prefix: "/"
+      route:
+        - destination:
+            host: api-gateway-service.matter-platform.svc.cluster.local
+            port:
+              number: 8080
+      timeout: 15s
+      retries:
+        attempts: 3
+        perTryTimeout: 3s
+        retryOn: "connect-failure,refused-stream,unavailable,cancelled,5xx"
+      fault:
+        delay:
+          percentage:
+            value: 0.1
+          fixedDelay: 5s
+
+  # TCP Routes for non-HTTP traffic
+  tcp:
+    - match:
+        - port: 9090
+      route:
+        - destination:
+            host: metrics-service.matter-platform.svc.cluster.local
+            port:
+              number: 9090
+
+  # TLS Routes
+  tls:
+    - match:
+        - port: 443
+          sniHosts:
+            - api.matter-platform.com
+      route:
+        - destination:
+            host: api-gateway-service.matter-platform.svc.cluster.local
+            port:
+              number: 8443
