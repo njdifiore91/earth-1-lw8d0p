@@ -1,0 +1,166 @@
+# Kibana 8.0 Configuration for Matter Platform
+# Purpose: Log analysis and monitoring interface with enhanced security
+
+#----------------------- Server Configuration ------------------------
+
+# Server identification and network settings
+server.name: "matter-kibana"
+server.host: "0.0.0.0"
+server.port: 5601
+
+# SSL/TLS Configuration
+server.ssl:
+  enabled: true
+  certificate: "/etc/kibana/certificates/kibana.crt"
+  key: "/etc/kibana/certificates/kibana.key"
+  certificateAuthorities: ["/etc/kibana/certificates/ca.crt"]
+  supportedProtocols: ["TLSv1.2", "TLSv1.3"]
+
+# Server performance settings
+server.maxPayloadBytes: 1048576
+server.compression.enabled: true
+server.keepaliveTimeout: 120000
+server.socketTimeout: 120000
+
+#----------------------- Elasticsearch Configuration ----------------
+
+# Elasticsearch connection settings
+elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  ssl:
+    verificationMode: certificate
+    certificateAuthorities: ["/etc/kibana/certificates/ca.crt"]
+  username: "${ELASTICSEARCH_USERNAME}"
+  password: "${ELASTICSEARCH_PASSWORD}"
+  requestTimeout: 30000
+  pingTimeout: 30000
+  
+  # Connection pool settings
+  sniffOnStart: true
+  sniffInterval: 60000
+  sniffOnConnectionFault: true
+
+#----------------------- Security Configuration --------------------
+
+# X-Pack security settings
+xpack.security:
+  enabled: true
+  encryptionKey: "${ENCRYPTION_KEY}"
+  audit:
+    enabled: true
+    ignore_filters:
+      - actions: ["ping"]
+  session:
+    idleTimeout: "1h"
+    lifespan: "24h"
+
+# Reporting security
+xpack.reporting:
+  enabled: true
+  encryptionKey: "${REPORTING_KEY}"
+  capture:
+    timeouts:
+      waitForElements: 30000
+  csv:
+    maxSizeBytes: 10485760
+  roles:
+    enabled: true
+
+#----------------------- Monitoring Configuration -----------------
+
+# X-Pack monitoring
+xpack.monitoring:
+  enabled: true
+  ui:
+    container:
+      elasticsearch:
+        enabled: true
+    enabled: true
+
+# APM integration
+xpack.apm:
+  enabled: true
+  ui:
+    enabled: true
+  indices:
+    enabled: true
+
+#----------------------- Logging Configuration -------------------
+
+# Logging settings
+logging:
+  appenders:
+    file:
+      type: file
+      fileName: "/var/log/kibana/kibana.log"
+      layout:
+        type: json
+  root:
+    level: info
+  loggers:
+    - name: plugins
+      level: info
+    - name: security
+      level: info
+    - name: monitoring
+      level: info
+
+#----------------------- UI Configuration -----------------------
+
+# UI settings
+xpack.spaces.enabled: true
+xpack.canvas.enabled: true
+xpack.maps.enabled: true
+xpack.infra.enabled: true
+xpack.fleet.enabled: true
+
+# Default visualization settings
+visualization:
+  colorMapping:
+    enabled: true
+  tileMap:
+    options:
+      maxZoom: 18
+      minZoom: 0
+
+# CORS settings
+server.cors:
+  enabled: true
+  origin: ["https://*.matter.cloud"]
+  credentials: true
+  headers: ["Authorization", "Content-Type", "kbn-version"]
+  allowCredentials: true
+
+#----------------------- Cache Configuration -------------------
+
+# Cache settings
+cache:
+  browser:
+    enabled: true
+  searchCache:
+    enabled: true
+    maxAge: 5m
+  apiCache:
+    enabled: true
+    maxAge: 2m
+
+#----------------------- Path Configuration -------------------
+
+# Path settings
+path:
+  data: "/var/lib/kibana"
+  logs: "/var/log/kibana"
+
+#----------------------- Status Configuration -----------------
+
+# Status configuration
+status:
+  allowAnonymous: false
+  v6ApiFormat: true
+
+#----------------------- SavedObjects Configuration -----------
+
+# SavedObjects settings
+savedObjects:
+  maxImportPayloadBytes: 26214400
+  maxImportExportSize: 10000
