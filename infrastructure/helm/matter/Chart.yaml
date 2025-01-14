@@ -1,0 +1,46 @@
+apiVersion: v2
+name: matter-platform
+description: Helm chart for Matter satellite data product matching platform with integrated microservices architecture and cloud infrastructure components
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+
+keywords:
+  - satellite
+  - earth-observation
+  - data-matching
+  - microservices
+  - kubernetes
+  - cloud-native
+  - geospatial
+  - matter-platform
+
+maintainers:
+  - name: Matter Platform Team
+    email: platform@matter.com
+
+dependencies:
+  - name: nginx-ingress
+    version: 4.7.0
+    repository: https://kubernetes.github.io/ingress-nginx
+    condition: ingress.enabled
+
+  - name: cert-manager
+    version: 1.12.0
+    repository: https://charts.jetstack.io
+    condition: certManager.enabled
+
+  - name: prometheus
+    version: 15.0.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: monitoring.prometheus.enabled
+
+  - name: redis
+    version: 17.0.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+
+  - name: postgresql
+    version: 12.0.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
