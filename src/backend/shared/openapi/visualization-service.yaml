@@ -1,0 +1,466 @@
+openapi: 3.0.0
+
+info:
+  title: Matter Visualization Service API
+  version: 1.0.0
+  description: |
+    API for rendering and exporting satellite data collection plan visualizations 
+    with enhanced validation, error handling, and security features.
+
+servers:
+  - url: /api/v1
+    description: Primary API endpoint
+
+security:
+  - jwt: []
+
+paths:
+  /visualizations:
+    post:
+      summary: Create new visualization
+      description: Creates a new visualization with comprehensive validation
+      operationId: createVisualization
+      tags:
+        - Visualizations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisualizationConfig'
+      responses:
+        '201':
+          description: Visualization created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisualizationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    get:
+      summary: List visualizations
+      description: Retrieves paginated list of visualizations with filtering
+      operationId: listVisualizations
+      tags:
+        - Visualizations
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/FilterParam'
+      responses:
+        '200':
+          description: List of visualizations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VisualizationResult'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /visualizations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/VisualizationIdParam'
+    
+    get:
+      summary: Get visualization by ID
+      description: Retrieves a specific visualization with caching
+      operationId: getVisualization
+      tags:
+        - Visualizations
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/IncludeParam'
+      responses:
+        '200':
+          description: Visualization details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisualizationResult'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      summary: Update visualization
+      description: Updates an existing visualization with validation
+      operationId: updateVisualization
+      tags:
+        - Visualizations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisualizationConfig'
+      responses:
+        '200':
+          description: Visualization updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisualizationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      summary: Delete visualization
+      description: Deletes a visualization with cleanup
+      operationId: deleteVisualization
+      tags:
+        - Visualizations
+      parameters:
+        - name: force
+          in: query
+          description: Force deletion even if referenced
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '204':
+          description: Visualization deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  schemas:
+    VisualizationConfig:
+      type: object
+      required:
+        - width
+        - height
+        - margin
+        - theme
+      properties:
+        width:
+          type: integer
+          minimum: 100
+          description: Width of visualization in pixels
+        height:
+          type: integer
+          minimum: 100
+          description: Height of visualization in pixels
+        margin:
+          type: object
+          properties:
+            top:
+              type: integer
+              minimum: 0
+            right:
+              type: integer
+              minimum: 0
+            bottom:
+              type: integer
+              minimum: 0
+            left:
+              type: integer
+              minimum: 0
+        theme:
+          type: object
+          properties:
+            primary:
+              type: string
+              format: color
+            secondary:
+              type: string
+              format: color
+            background:
+              type: string
+              format: color
+            text:
+              type: string
+              format: color
+            accent:
+              type: string
+              format: color
+        responsive:
+          type: object
+          properties:
+            breakpoints:
+              type: object
+              properties:
+                mobile:
+                  type: integer
+                tablet:
+                  type: integer
+                desktop:
+                  type: integer
+            scaling:
+              type: number
+              minimum: 0
+              maximum: 2
+
+    TimelineData:
+      type: object
+      required:
+        - id
+        - startTime
+        - endTime
+        - confidenceScore
+      properties:
+        id:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        confidenceScore:
+          type: number
+          minimum: 0
+          maximum: 100
+        collectionWindows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectionWindow'
+        metadata:
+          type: object
+          properties:
+            description:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
+            customData:
+              type: object
+              additionalProperties: true
+
+    VisualizationResult:
+      type: object
+      required:
+        - id
+        - searchId
+        - timelineData
+        - capabilityMatrix
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        searchId:
+          type: string
+          format: uuid
+        timelineData:
+          $ref: '#/components/schemas/TimelineData'
+        capabilityMatrix:
+          type: array
+          items:
+            $ref: '#/components/schemas/CapabilityMatrixData'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CapabilityMatrixData:
+      type: object
+      required:
+        - assetType
+        - confidenceScore
+      properties:
+        assetType:
+          type: string
+        confidenceScore:
+          type: number
+          minimum: 0
+          maximum: 100
+        parameters:
+          type: object
+          properties:
+            resolution:
+              type: number
+            coverage:
+              type: number
+            accuracy:
+              type: number
+            reliability:
+              type: number
+
+    CollectionWindow:
+      type: object
+      required:
+        - startTime
+        - endTime
+        - priority
+        - status
+      properties:
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+        status:
+          type: string
+          enum:
+            - available
+            - scheduled
+            - conflict
+            - completed
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        pages:
+          type: integer
+
+  parameters:
+    VisualizationIdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Unique visualization identifier
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number for pagination
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      description: Number of items per page
+
+    SortParam:
+      name: sort
+      in: query
+      schema:
+        type: string
+        enum: [createdAt, -createdAt, confidenceScore, -confidenceScore]
+      description: Sort field and direction
+
+    FilterParam:
+      name: filter
+      in: query
+      schema:
+        type: string
+      description: JSON filter criteria
+
+    FieldsParam:
+      name: fields
+      in: query
+      schema:
+        type: string
+      description: Comma-separated list of fields to include
+
+    IncludeParam:
+      name: include
+      in: query
+      schema:
+        type: string
+      description: Related resources to include
+
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token
+
+  responses:
+    ValidationError:
+      description: Invalid input parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              fields:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                    message:
+                      type: string
+
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              id:
+                type: string
+                description: Error tracking ID
