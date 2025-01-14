@@ -1,0 +1,368 @@
+openapi: 3.0.0
+
+info:
+  title: Matter Search Service API
+  version: 1.0.0
+  description: |
+    Satellite data search and planning service for Matter platform.
+    Provides endpoints for managing searches, locations, assets, and requirements
+    with comprehensive validation and security features.
+
+servers:
+  - url: /api/v1
+    description: Primary API endpoint
+
+security:
+  - jwt: []
+
+paths:
+  /searches:
+    post:
+      operationId: createSearch
+      summary: Create new satellite data search
+      description: Creates a new search with locations, assets and requirements
+      tags:
+        - searches
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '201':
+          description: Search created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+      x-codegen:
+        operationId: createSearch
+
+    get:
+      operationId: listSearches
+      summary: List user searches
+      description: Retrieves paginated list of user's searches with filtering
+      tags:
+        - searches
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, submitted, processing, completed, archived, deleted]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [created_at, updated_at, status]
+            default: created_at
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: List of searches
+          headers:
+            X-Total-Count:
+              schema:
+                type: integer
+            X-Page-Count:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+
+  /searches/{searchId}:
+    parameters:
+      - name: searchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getSearch
+      summary: Get search details
+      tags:
+        - searches
+      responses:
+        '200':
+          description: Search details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    
+    patch:
+      operationId: updateSearch
+      summary: Update search
+      tags:
+        - searches
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchUpdateRequest'
+      responses:
+        '200':
+          description: Search updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /searches/{searchId}/locations:
+    parameters:
+      - name: searchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: addLocation
+      summary: Add location to search
+      tags:
+        - locations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationRequest'
+      responses:
+        '201':
+          description: Location added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    SearchRequest:
+      type: object
+      required:
+        - parameters
+        - classification_level
+      properties:
+        parameters:
+          type: object
+          required:
+            - temporal_window
+            - assets
+          properties:
+            temporal_window:
+              type: object
+              required:
+                - start
+                - end
+              properties:
+                start:
+                  type: string
+                  format: date-time
+                end:
+                  type: string
+                  format: date-time
+            assets:
+              type: array
+              minItems: 1
+              maxItems: 5
+              items:
+                $ref: '#/components/schemas/Asset'
+        classification_level:
+          type: string
+          enum: [public, internal, confidential, restricted]
+
+    Asset:
+      type: object
+      required:
+        - type
+        - requirements
+      properties:
+        type:
+          type: string
+          enum: [environmental, infrastructure, agriculture, custom]
+        requirements:
+          type: object
+          additionalProperties:
+            type: number
+
+    LocationRequest:
+      type: object
+      required:
+        - type
+        - geometry
+      properties:
+        type:
+          type: string
+          enum: [polygon, point, multipolygon]
+        geometry:
+          type: object
+          description: GeoJSON geometry object
+        metadata:
+          type: object
+
+    SearchResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [draft, submitted, processing, completed, archived, deleted]
+        parameters:
+          $ref: '#/components/schemas/SearchRequest/properties/parameters'
+        classification_level:
+          $ref: '#/components/schemas/SearchRequest/properties/classification_level'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SearchListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResponse'
+        page:
+          type: integer
+        total_pages:
+          type: integer
+        total_items:
+          type: integer
+
+    LocationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        search_id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/LocationRequest/properties/type'
+        geometry:
+          $ref: '#/components/schemas/LocationRequest/properties/geometry'
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: array
+                items:
+                  type: string
+
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+    RateLimitError:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token
+
+tags:
+  - name: searches
+    description: Search management operations
+  - name: locations
+    description: Location management operations
