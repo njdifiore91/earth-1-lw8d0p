@@ -1,0 +1,74 @@
+{{- range $service, $config := .Values.services }}
+{{- if $config.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "matter.serviceName" $ }}-{{ $service }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "matter.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $service }}
+    topology.kubernetes.io/region: {{ $.Values.global.region.primary }}
+  annotations:
+    # Prometheus monitoring annotations
+    {{- if $config.monitoring.enabled }}
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ $config.ports.metrics | quote }}
+    prometheus.io/path: "/metrics"
+    {{- end }}
+    # Istio service mesh annotations
+    networking.istio.io/exportTo: "."
+    security.istio.io/tlsMode: "STRICT"
+    security.istio.io/mtlsMode: "STRICT"
+    # High availability annotations
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout: "60"
+    # Health check annotations
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "HTTP"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: {{ $config.healthCheck.path | quote }}
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: {{ $config.healthCheck.port | quote }}
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: {{ $config.healthCheck.periodSeconds | quote }}
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "5"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: "2"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: {{ $config.healthCheck.failureThreshold | quote }}
+spec:
+  type: ClusterIP
+  ports:
+    # Main service port
+    - name: http
+      port: {{ $config.ports.http }}
+      targetPort: {{ $config.ports.http }}
+      protocol: TCP
+    # Metrics port for Prometheus
+    {{- if $config.monitoring.enabled }}
+    - name: metrics
+      port: {{ $config.ports.metrics }}
+      targetPort: {{ $config.ports.metrics }}
+      protocol: TCP
+    {{- end }}
+    # Health check port
+    - name: health
+      port: {{ $config.healthCheck.port }}
+      targetPort: {{ $config.healthCheck.port }}
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: {{ include "matter.name" $ }}-{{ $service }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: {{ $service }}
+    topology.kubernetes.io/region: {{ $.Values.global.region.primary }}
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+  # Enable topology aware routing
+  topologyKeys:
+    - "topology.kubernetes.io/zone"
+    - "topology.kubernetes.io/region"
+    - "*"
+  # Don't route traffic to pods that aren't ready
+  publishNotReadyAddresses: false
+{{- end }}
+{{- end }}
