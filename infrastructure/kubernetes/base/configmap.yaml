@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: matter-platform-config
+  namespace: matter-platform
+  labels:
+    app: matter-satellite-platform
+    environment: production
+    component: configuration
+    managed-by: gitops
+data:
+  # API Configuration
+  API_TIMEOUT: "30"  # API request timeout in seconds
+  MAX_CONNECTIONS: "100"  # Maximum concurrent connections
+  RETRY_ATTEMPTS: "3"  # Number of retry attempts for failed requests
+  CACHE_TTL: "3600"  # Cache time-to-live in seconds
+
+  # Environment Configuration
+  LOG_LEVEL: "info"  # Default logging level
+  ENVIRONMENT: "production"  # Environment identifier
+  
+  # API Version Configuration
+  MAPBOX_API_VERSION: "v1"  # Mapbox API version
+  EARTH_N_API_VERSION: "v2"  # EARTH-n simulator API version
+
+  # Spatial Configuration
+  SPATIAL_PRECISION: "6"  # Decimal places for coordinate precision
+  MAX_SEARCH_AREA: "10000"  # Maximum search area in square kilometers
+  MAX_RESULTS: "1000"  # Maximum number of results per query
+
+  # Monitoring Configuration
+  MONITORING_ENABLED: "true"  # Enable/disable monitoring
+  PROMETHEUS_SCRAPE_INTERVAL: "15s"  # Prometheus metrics scrape interval
+  METRICS_PATH: "/metrics"  # Path for metrics endpoint
+  HEALTH_CHECK_INTERVAL: "30s"  # Health check interval
+  TRACING_ENABLED: "true"  # Enable distributed tracing
+  LOGGING_FORMAT: "json"  # Logging output format
