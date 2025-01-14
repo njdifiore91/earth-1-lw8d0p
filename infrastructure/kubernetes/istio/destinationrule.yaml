@@ -1,0 +1,100 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: matter-destinationrule
+  namespace: matter-platform
+  labels:
+    app: matter-satellite-platform
+    component: istio-traffic-policy
+    environment: production
+    managed-by: gitops
+  annotations:
+    security.matter.com/policy-version: "v1"
+    monitoring.matter.com/enabled: "true"
+spec:
+  # Define the host pattern for all services in the matter-platform namespace
+  host: "*.matter-platform.svc.cluster.local"
+  
+  # Global traffic policy for all services
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+      consistentHash:
+        httpCookie:
+          name: matter-session
+          ttl: 3h
+    
+    # Global connection pool settings
+    connectionPool:
+      tcp:
+        maxConnections: 100  # Aligned with MAX_CONNECTIONS config
+        connectTimeout: "5s"
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 10
+        maxRetries: 3  # Matches RETRY_ATTEMPTS config
+        idleTimeout: "30s"
+        h2MaxRequests: 1000
+    
+    # Circuit breaker and outlier detection
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: "30s"
+      baseEjectionTime: "30s"
+      maxEjectionPercent: 10
+      minHealthPercent: 60
+  
+  # Service-specific subsets with optimized configurations
+  subsets:
+    # Auth service subset with enhanced security settings
+    - name: auth
+      labels:
+        service: auth-service
+        component: security
+        tier: backend
+      trafficPolicy:
+        loadBalancer:
+          simple: LEAST_CONN
+        connectionPool:
+          tcp:
+            maxConnections: 50  # Restricted for security service
+          http:
+            maxRequestsPerConnection: 5
+            http1MaxPendingRequests: 50
+        outlierDetection:
+          consecutive5xxErrors: 3  # More sensitive for auth failures
+          interval: "15s"
+          baseEjectionTime: "45s"
+          maxEjectionPercent: 15
+        tls:
+          mode: ISTIO_MUTUAL
+          subjectAltNames:
+            - "auth-service.matter-platform.svc.cluster.local"
+    
+    # Search service subset optimized for high throughput
+    - name: search
+      labels:
+        app: search-service
+        component: backend
+      trafficPolicy:
+        loadBalancer:
+          simple: ROUND_ROBIN
+        connectionPool:
+          tcp:
+            maxConnections: 150  # Higher for search service
+          http:
+            maxRequestsPerConnection: 20
+            http1MaxPendingRequests: 150
+            maxRetries: 2
+        outlierDetection:
+          consecutive5xxErrors: 7  # More tolerant for search service
+          interval: "45s"
+          baseEjectionTime: "30s"
+          maxEjectionPercent: 20
+        tls:
+          mode: ISTIO_MUTUAL
+          subjectAltNames:
+            - "search-service.matter-platform.svc.cluster.local"
