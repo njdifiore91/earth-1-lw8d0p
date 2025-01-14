@@ -1,0 +1,46 @@
+# Version: 1.0.0
+# Last Updated: 2024
+
+# Default ownership - Core team must review all changes
+*                                   @matter/core-team
+
+# Backend Services
+# Auth service requires security team review for OAuth 2.0 and JWT implementation
+src/backend/auth-service/**         @matter/security-team @matter/backend-team
+
+# Search service with geospatial expertise requirements
+src/backend/search-service/**       @matter/backend-team @matter/geospatial-team
+
+# Planning service with optimization algorithm expertise
+src/backend/planning-service/**     @matter/backend-team @matter/optimization-team
+
+# Visualization service requiring WebGL and D3.js expertise
+src/backend/visualization-service/** @matter/backend-team @matter/visualization-team
+
+# Frontend Application
+src/web/**                         @matter/frontend-team
+
+# Infrastructure Configuration
+infrastructure/**                  @matter/devops-team
+infrastructure/kubernetes/**       @matter/devops-team @matter/platform-team
+infrastructure/terraform/**        @matter/devops-team @matter/platform-team
+
+# CI/CD Workflows requiring security review
+.github/workflows/**              @matter/devops-team @matter/security-team
+
+# Test Suites
+src/backend/**/tests/**          @matter/qa-team @matter/backend-team
+src/web/**/tests/**              @matter/qa-team @matter/frontend-team
+
+# Security-sensitive paths requiring additional reviews
+# Auth service changes require 2 security team approvals
+src/backend/auth-service/**       @matter/security-team @matter/backend-team
+/SECURITY_SENSITIVE_PATHS=2/
+
+# CI/CD workflow changes require 2 security team approvals
+.github/workflows/**              @matter/devops-team @matter/security-team
+/SECURITY_SENSITIVE_PATHS=2/
+
+# Infrastructure changes require 2 platform team approvals
+infrastructure/terraform/**       @matter/devops-team @matter/platform-team
+/SECURITY_SENSITIVE_PATHS=2/
