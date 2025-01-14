@@ -1,0 +1,48 @@
+<svg 
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  width="24"
+  height="24"
+  preserveAspectRatio="xMidYMid meet"
+  role="img"
+  aria-label="Satellite marker"
+  focusable="false"
+  aria-hidden="true"
+  style="vector-effect: non-scaling-stroke;"
+>
+  <!-- Main satellite body -->
+  <path
+    d="M12 4L9 7l3 3 3-3-3-3z"
+    fill="var(--satellite-icon-fill, currentColor)"
+    fill-opacity="var(--satellite-icon-opacity, 0.87)"
+    stroke="var(--satellite-icon-stroke, currentColor)"
+    stroke-width="var(--satellite-icon-stroke-width, 2)"
+  />
+  
+  <!-- Solar panels -->
+  <path
+    d="M4 12h4M16 12h4"
+    fill="none"
+    stroke="var(--satellite-icon-stroke, currentColor)"
+    stroke-width="var(--satellite-icon-stroke-width, 2)"
+    stroke-linecap="round"
+  />
+  
+  <!-- Communication dish -->
+  <path
+    d="M12 10v8"
+    fill="none"
+    stroke="var(--satellite-icon-stroke, currentColor)"
+    stroke-width="var(--satellite-icon-stroke-width, 2)"
+    stroke-linecap="round"
+  />
+  
+  <!-- Orbit indicator -->
+  <path
+    d="M12 18a2 2 0 100 4 2 2 0 000-4z"
+    fill="var(--satellite-icon-secondary, currentColor)"
+    fill-opacity="var(--satellite-icon-opacity, 0.87)"
+    stroke="var(--satellite-icon-stroke, currentColor)"
+    stroke-width="var(--satellite-icon-stroke-width, 2)"
+  />
+</svg>
