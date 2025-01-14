@@ -1,0 +1,138 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: matter-platform
+  labels:
+    app: matter-satellite-platform
+    service: auth-service
+    environment: production
+    version: v1
+  annotations:
+    security.matter.io/compliance-level: high
+    deployment.kubernetes.io/revision-history-limit: "5"
+
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+      
+  selector:
+    matchLabels:
+      service: auth-service
+      
+  template:
+    metadata:
+      labels:
+        service: auth-service
+        app: matter-satellite-platform
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+        sidecar.istio.io/inject: "true"
+        vault.hashicorp.com/agent-inject: "true"
+        
+    spec:
+      serviceAccountName: matter-platform-sa
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+          
+      containers:
+      - name: auth-service
+        image: "{{ .Values.registry }}/auth-service:{{ .Values.tag }}"
+        imagePullPolicy: Always
+        
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+          
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m" 
+            memory: "512Mi"
+            
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true
+          
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+          
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+          
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        - name: SERVICE_NAME
+          value: "auth-service"
+        - name: LOG_LEVEL
+          value: "info"
+          
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: auth-service-config
+          mountPath: /app/config
+          readOnly: true
+          
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: auth-service-config
+        configMap:
+          name: auth-service-config
+          
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: service
+                  operator: In
+                  values:
+                  - auth-service
+              topologyKey: kubernetes.io/hostname
+              
+      terminationGracePeriodSeconds: 60
+      
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
