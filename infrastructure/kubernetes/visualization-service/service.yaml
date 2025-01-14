@@ -1,0 +1,39 @@
+# Kubernetes Service configuration for Matter Platform Visualization Service
+# Version: v1
+# Purpose: Provides internal service discovery and load balancing for visualization capabilities
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: visualization-service
+  namespace: matter-platform
+  labels:
+    app: matter-platform
+    service: visualization
+    tier: backend
+    component: visualization-service
+  annotations:
+    service.kubernetes.io/description: "Visualization service for Matter Platform providing D3.js visualizations and data exports"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3003"
+
+spec:
+  type: ClusterIP  # Internal cluster access only
+  ports:
+    - name: http
+      port: 3003  # Service port
+      targetPort: http  # Maps to container port name
+      protocol: TCP
+  
+  # Selector matches deployment pod labels
+  selector:
+    app: matter-platform
+    service: visualization
+  
+  # Session handling configuration
+  sessionAffinity: None
+  publishNotReadyAddresses: false
+
+  # Internal traffic policy for improved security
+  internalTrafficPolicy: Cluster
