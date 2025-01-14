@@ -1,0 +1,93 @@
+[tool.poetry]
+name = "search-service"
+version = "1.0.0"
+description = "Matter satellite data search service"
+authors = ["Matter Engineering Team"]
+python = "^3.11"
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.95.0"  # High-performance async web framework
+uvicorn = "^0.21.0"  # Lightning-fast ASGI server
+sqlalchemy = "^2.0.0"  # SQL toolkit and ORM
+geoalchemy2 = "^0.13.0"  # PostGIS integration
+shapely = "^2.0.0"  # Geometric operations
+pyproj = "^3.5.0"  # Cartographic projections
+python-dotenv = "^1.0.0"  # Environment management
+redis = "^4.5.0"  # Redis caching client
+psycopg2-binary = "^2.9.6"  # PostgreSQL adapter
+pydantic = "^1.10.0"  # Data validation
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.0"  # Testing framework
+pytest-cov = "^4.0.0"  # Coverage reporting
+black = "^23.3.0"  # Code formatting
+isort = "^5.12.0"  # Import sorting
+mypy = "^1.2.0"  # Type checking
+flake8 = "^6.0.0"  # Code linting
+
+[build-system]
+requires = ["poetry-core>=1.5.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+start = "uvicorn src.app:app --reload"
+test = "pytest --cov=src --cov-report=term-missing"
+lint = "flake8 src tests"
+format = "black src tests && isort src tests"
+typecheck = "mypy src --strict"
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+minversion = "7.3.0"
+addopts = "-ra -q --cov=src --cov-report=term-missing"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError"
+]
+ignore_errors = true
+fail_under = 90
