@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: planning-service
+  namespace: matter-platform
+  labels:
+    app: matter-satellite-platform
+    service: planning-service
+    environment: production
+    component: planning
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+    prometheus.io/scheme: "http"
+    service.kubernetes.io/topology-aware-hints: "auto"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+      name: http-planning
+  selector:
+    app: matter-satellite-platform
+    service: planning-service
+  sessionAffinity: None
+  internalTrafficPolicy: Cluster
