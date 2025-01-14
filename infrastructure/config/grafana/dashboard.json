@@ -1,0 +1,302 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "title": "System Overview",
+      "type": "row",
+      "panels": []
+    },
+    {
+      "title": "Service Response Times",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"matter-platform\"}[5m])) by (le, service))",
+          "legendFormat": "{{service}} - 95th Percentile"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "s",
+          "label": "Response Time",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "High Response Time",
+        "message": "Service response time exceeds SLA threshold of 3 seconds",
+        "conditions": [
+          {
+            "evaluator": {
+              "type": "gt",
+              "params": [3]
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": ["A", "5m", "now"]
+            },
+            "reducer": {
+              "type": "avg",
+              "params": []
+            }
+          }
+        ],
+        "frequency": "1m",
+        "handler": 1
+      }
+    },
+    {
+      "title": "System Uptime",
+      "type": "gauge",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "avg_over_time(up{namespace=\"matter-platform\"}[24h]) * 100"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["mean"],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 99 },
+              { "color": "green", "value": 99.9 }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "unit": "percent"
+        }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "title": "Service Health",
+      "type": "row",
+      "panels": []
+    },
+    {
+      "title": "Error Rate by Service",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{namespace=\"matter-platform\", status=~\"5..\"}[5m])) by (service) / sum(rate(http_requests_total{namespace=\"matter-platform\"}[5m])) by (service)",
+          "legendFormat": "{{service}}"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "percentunit",
+          "label": "Error Rate",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ]
+    },
+    {
+      "title": "Service Dependencies",
+      "type": "nodeGraph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "datasource": "Jaeger",
+      "targets": [
+        {
+          "query": "service.dependencies",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "title": "Resource Utilization",
+      "type": "row",
+      "panels": []
+    },
+    {
+      "title": "CPU Usage by Pod",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"matter-platform\"}[5m])) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "percentunit",
+          "label": "CPU Usage",
+          "min": 0
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ]
+    },
+    {
+      "title": "Memory Usage by Pod",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(container_memory_usage_bytes{namespace=\"matter-platform\"}) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "bytes",
+          "label": "Memory Usage",
+          "min": 0
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": [
+    "matter-platform",
+    "production"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(kube_namespace_labels, namespace)",
+        "regex": "matter-platform",
+        "refresh": 2
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(http_requests_total{namespace=\"$namespace\"}, service)",
+        "refresh": 2
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Matter Platform Overview",
+  "uid": "matter-platform-overview",
+  "version": 1
+}
