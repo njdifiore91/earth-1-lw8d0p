@@ -1,0 +1,222 @@
+version: "3.8"
+
+services:
+  # Database service
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: matter
+      POSTGRES_USER: matter_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - matter_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matter_user -d matter"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Cache service
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - matter_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+    ports:
+      - "3000:3000"
+    networks:
+      - matter_network
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      search-service:
+        condition: service_healthy
+      planning-service:
+        condition: service_healthy
+      visualization-service:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - SEARCH_SERVICE_URL=http://search-service:8000
+      - PLANNING_SERVICE_URL=http://planning-service:8000
+      - VISUALIZATION_SERVICE_URL=http://visualization-service:3003
+      - RATE_LIMIT_WINDOW=15m
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Authentication Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    networks:
+      - matter_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DB_URL=postgres://matter_user:${POSTGRES_PASSWORD}@postgres:5432/matter
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Search Service
+  search-service:
+    build:
+      context: ./search-service
+      dockerfile: Dockerfile
+    networks:
+      - matter_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_URL=postgres://matter_user:${POSTGRES_PASSWORD}@postgres:5432/matter
+      - SPATIAL_INDEX_MEMORY=512m
+      - MAX_WORKERS=4
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import http.client; conn = http.client.HTTPConnection('localhost:8000'); conn.request('GET', '/health'); response = conn.getresponse(); exit(0 if response.status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Planning Service
+  planning-service:
+    build:
+      context: ./planning-service
+      dockerfile: Dockerfile
+    networks:
+      - matter_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_URL=postgres://matter_user:${POSTGRES_PASSWORD}@postgres:5432/matter
+      - PLANNING_TIMEOUT=300
+      - NUMPY_NUM_THREADS=4
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import http.client; conn = http.client.HTTPConnection('localhost:8000'); conn.request('GET', '/health'); response = conn.getresponse(); exit(0 if response.status == 200 and response.read().decode('utf-8').find('\"planning_queue\":\"healthy\"') != -1 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Visualization Service
+  visualization-service:
+    build:
+      context: ./visualization-service
+      dockerfile: Dockerfile
+    networks:
+      - matter_network
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - UV_THREADPOOL_SIZE=8
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js", "--check-visualization-system"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  matter_network:
+    driver: bridge
+    internal: true
+    attachable: true
+    enable_ipv6: false
+    driver_opts:
+      com.docker.network.bridge.name: matter_net
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
