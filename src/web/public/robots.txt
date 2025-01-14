@@ -1,0 +1,38 @@
+# Robots Exclusion Protocol Configuration
+# Last Updated: 2024
+
+# Default rules for all crawlers
+User-agent: *
+# Allow public marketing and essential files
+Allow: /
+Allow: /index.html
+Allow: /manifest.json
+Allow: /favicon.ico
+Allow: /assets/images/
+# Protect authenticated and sensitive routes
+Disallow: /api/
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /search/
+Disallow: /results/
+Disallow: /profile/
+
+# Specific rules for Googlebot
+User-agent: Googlebot
+# Implement rate limiting for resource optimization
+Crawl-delay: 1
+# Inherit same allow/disallow rules as default
+Allow: /
+Allow: /index.html
+Allow: /manifest.json
+Allow: /favicon.ico
+Allow: /assets/images/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /search/
+Disallow: /results/
+Disallow: /profile/
+
+# Sitemap reference for improved indexing
+Sitemap: https://matter.com/sitemap.xml
