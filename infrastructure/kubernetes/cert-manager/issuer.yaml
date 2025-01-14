@@ -1,0 +1,51 @@
+apiVersion: cert-manager.io/v1  # cert-manager v1.9+
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  labels:
+    app: matter-satellite-platform
+    component: cert-manager
+    environment: production
+spec:
+  acme:
+    # Production Let's Encrypt ACME server endpoint
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Operations email for certificate notifications and management
+    email: platform-ops@matter-platform.com
+    # Secret reference for storing the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      # HTTP-01 challenge solver using NGINX ingress
+      - http01:
+          ingress:
+            class: nginx
+            # Use production namespace for ACME solver resources
+            ingressTemplate:
+              metadata:
+                annotations:
+                  kubernetes.io/ingress.class: nginx
+                  cert-manager.io/issue-temporary-certificate: "true"
+                  acme.cert-manager.io/http01-edit-in-place: "true"
+                labels:
+                  app: matter-satellite-platform
+                  component: cert-manager
+                  environment: production
+            podTemplate:
+              metadata:
+                labels:
+                  app: matter-satellite-platform
+                  component: cert-manager
+                  environment: production
+              spec:
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 1000
+                  fsGroup: 2000
+                nodeSelector:
+                  environment: production
+                tolerations:
+                  - key: "CriticalAddonsOnly"
+                    operator: "Exists"
+                priorityClassName: "system-cluster-critical"
+                serviceAccountName: cert-manager
