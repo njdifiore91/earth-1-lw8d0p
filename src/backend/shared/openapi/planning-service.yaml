@@ -1,0 +1,319 @@
+openapi: 3.0.0
+info:
+  title: Planning Service API
+  version: 1.0.0
+  description: |
+    API for satellite data collection planning and optimization.
+    Provides endpoints for asset definition, collection planning, and optimization.
+
+servers:
+  - url: /api/v1/planning
+    description: Planning service API endpoint
+
+components:
+  schemas:
+    AssetRequest:
+      type: object
+      required:
+        - name
+        - type
+        - min_size
+        - detection_limit
+        - properties
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Asset name
+        type:
+          type: string
+          enum: [ENVIRONMENTAL_MONITORING, INFRASTRUCTURE, AGRICULTURE, CUSTOM]
+          description: Type of asset for collection planning
+        min_size:
+          type: number
+          minimum: 0.5
+          maximum: 1000.0
+          description: Minimum detectable size in meters
+        detection_limit:
+          type: number
+          minimum: 0.1
+          maximum: 100.0
+          description: Minimum detection threshold
+        properties:
+          type: object
+          required:
+            - resolution
+            - spectral_bands
+            - revisit_time
+          properties:
+            resolution:
+              type: number
+              description: Spatial resolution in meters
+            spectral_bands:
+              type: array
+              items:
+                type: string
+              description: List of spectral bands
+            revisit_time:
+              type: integer
+              description: Revisit time in hours
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: List of asset capabilities
+
+    AssetResponse:
+      allOf:
+        - $ref: '#/components/schemas/AssetRequest'
+        - type: object
+          required:
+            - id
+            - created_at
+            - updated_at
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: Unique identifier for the asset
+            created_at:
+              type: string
+              format: date-time
+              description: Asset creation timestamp
+            updated_at:
+              type: string
+              format: date-time
+              description: Asset last update timestamp
+
+    PlanRequest:
+      type: object
+      required:
+        - search_id
+        - asset_id
+        - start_time
+        - end_time
+        - requirements
+      properties:
+        search_id:
+          type: string
+          format: uuid
+          description: Associated search identifier
+        asset_id:
+          type: string
+          format: uuid
+          description: Asset identifier for collection planning
+        start_time:
+          type: string
+          format: date-time
+          description: Collection window start time
+        end_time:
+          type: string
+          format: date-time
+          description: Collection window end time
+        requirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Requirement'
+        optimization_parameters:
+          type: object
+          description: Optional optimization parameters
+
+    Requirement:
+      type: object
+      required:
+        - parameter
+        - value
+        - unit
+      properties:
+        parameter:
+          type: string
+          enum: [TEMPORAL, SPATIAL, SPECTRAL, RADIOMETRIC]
+          description: Requirement parameter type
+        value:
+          type: number
+          description: Parameter value
+        unit:
+          type: string
+          description: Parameter unit of measurement
+
+    PlanResponse:
+      allOf:
+        - $ref: '#/components/schemas/PlanRequest'
+        - type: object
+          required:
+            - id
+            - status
+            - confidence_score
+            - collection_windows
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: Unique plan identifier
+            status:
+              type: string
+              enum: [DRAFT, PROCESSING, OPTIMIZED, FAILED]
+              description: Current plan status
+            confidence_score:
+              type: number
+              minimum: 0
+              maximum: 1
+              description: Overall plan confidence score
+            collection_windows:
+              type: array
+              items:
+                $ref: '#/components/schemas/CollectionWindow'
+
+    CollectionWindow:
+      type: object
+      required:
+        - start_time
+        - end_time
+        - confidence_score
+      properties:
+        start_time:
+          type: string
+          format: date-time
+          description: Window start time
+        end_time:
+          type: string
+          format: date-time
+          description: Window end time
+        confidence_score:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Window confidence score
+        parameters:
+          type: object
+          description: Additional window parameters
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code for client handling
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+paths:
+  /assets:
+    post:
+      summary: Create new asset definition
+      description: Define satellite data collection asset requirements
+      operationId: createAsset
+      tags: [Assets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetRequest'
+      responses:
+        '201':
+          description: Asset created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /plans:
+    post:
+      summary: Create collection plan
+      description: Create a new satellite data collection plan
+      operationId: createPlan
+      tags: [Plans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+      responses:
+        '201':
+          description: Plan created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Asset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /plans/{planId}/optimize:
+    post:
+      summary: Optimize collection plan
+      description: Trigger optimization for an existing collection plan
+      operationId: optimizePlan
+      tags: [Plans]
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Optimization started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Plan in invalid state for optimization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Assets
+    description: Asset definition operations
+  - name: Plans
+    description: Collection planning operations
