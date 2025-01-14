@@ -1,0 +1,59 @@
+apiVersion: 1
+
+datasources:
+  # Prometheus metrics datasource configuration
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus-service:9090  # Matches Kubernetes service name
+    isDefault: true  # Set as default datasource
+    version: 1
+    editable: false  # Prevent tampering
+    jsonData:
+      timeInterval: "15s"  # Matches Prometheus scrape_interval
+      queryTimeout: "30s"  # Extended timeout for complex queries
+      httpMethod: "POST"  # Use POST for larger queries
+      exemplarTraceIdDestinations:  # Link metrics to traces
+        - name: trace_id
+          datasourceUid: jaeger
+
+  # Elasticsearch logs datasource configuration
+  - name: Elasticsearch
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch-service:9200  # Matches Kubernetes service name
+    database: "matter-logs-*"  # Index pattern for Matter platform logs
+    isDefault: false
+    version: 1
+    editable: false
+    jsonData:
+      timeField: "@timestamp"
+      esVersion: "8.0.0"  # Match ELK Stack version
+      maxConcurrentShardRequests: 5  # Optimize performance
+      logMessageField: "message"  # Standard log message field
+      logLevelField: "level"  # Log level field for filtering
+      dataLinks:  # Link logs to traces
+        - field: "trace_id"
+          datasourceUid: jaeger
+          urlTemplate: '/explore?orgId=1&left={"datasource":"jaeger","queries":[{"query":"${__value.raw}"}]}'
+
+  # Jaeger tracing datasource configuration
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger-query:16686  # Matches Kubernetes service name
+    isDefault: false
+    version: 1
+    editable: false
+    jsonData:
+      nodeGraph:
+        enabled: true  # Enable service dependency visualization
+      tracesToLogs:  # Link traces to logs
+        datasourceUid: elasticsearch
+        tags: ["service", "pod", "namespace"]
+        mappedTags: [{"key": "service.name", "value": "service"}]
+        mapTagNamesEnabled: true
+      search:
+        hide: false
+      lokiSearch:
+        datasourceUid: elasticsearch
