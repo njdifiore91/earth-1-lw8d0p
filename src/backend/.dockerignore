@@ -1,0 +1,117 @@
+node_modules/
+.npm/
+.yarn/
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python artifacts and caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage*
+htmlcov/
+.python-version
+poetry.lock*
+*.egg-info/
+dist/
+build/
+
+# Development and IDE files
+.git/
+.gitignore
+.vscode/
+.idea/
+.devcontainer/
+*.md
+README*
+CHANGELOG*
+LICENSE*
+CONTRIBUTING*
+
+# Environment and configuration files
+.env*
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+*.config.js
+*.conf
+
+# Test files and directories
+tests/
+test/
+__tests__/
+coverage/
+.nyc_output/
+
+# Docker files (except Dockerfile)
+docker-compose*.yml
+.docker/
+.dockerignore
+
+# Security and certificates
+**/secrets/
+**/certs/
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# Log files
+*.log
+logs/
+log/
+
+# Temporary files
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Documentation
+docs/
+doc/
+documentation/
+*.rst
+*.txt
+
+# Build artifacts
+.next/
+.nuxt/
+.output/
+.cache/
+.parcel-cache/
+
+# Version control
+.svn/
+.hg/
+CVS/
+
+# Monitoring and profiling
+.clinic/
+profile/
+*.heapsnapshot
+*.cpuprofile
+
+# Dependency lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Local development tools
+*.local
+.editorconfig
+.prettierrc
+.eslintrc*
+.stylelintrc*
+tslint.json
+jest.config.*
