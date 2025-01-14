@@ -1,0 +1,44 @@
+apiVersion: autoscaling/v2  # kubernetes v2 for advanced scaling features
+kind: HorizontalPodAutoscaler
+metadata:
+  name: planning-service-hpa
+  namespace: matter-platform  # Matches namespace from namespace.yaml
+  labels:
+    app: matter-satellite-platform
+    service: planning-service
+    environment: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: planning-service
+  minReplicas: 3  # Minimum replicas for high availability
+  maxReplicas: 10  # Maximum replicas based on load analysis
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Scale at 70% CPU utilization
+    # Memory-based scaling  
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80  # Scale at 80% memory utilization
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60  # Wait 60s before additional scale up
+      policies:
+        - type: Pods
+          value: 2  # Add up to 2 pods
+          periodSeconds: 60  # Every 60 seconds
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 300s before scale down
+      policies:
+        - type: Pods
+          value: 1  # Remove 1 pod
+          periodSeconds: 120  # Every 120 seconds
