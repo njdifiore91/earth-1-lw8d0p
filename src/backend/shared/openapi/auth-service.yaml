@@ -1,0 +1,331 @@
+openapi: 3.0.0
+
+info:
+  title: Matter Auth Service API
+  version: 1.0.0
+  description: |
+    Authentication and authorization service for Matter platform with comprehensive security features.
+    Implements OAuth 2.0, JWT token management, MFA, and role-based access control.
+
+servers:
+  - url: https://api.matter.com/v1
+    description: Production server
+  - url: https://staging-api.matter.com/v1
+    description: Staging server
+
+tags:
+  - name: Authentication
+    description: Authentication endpoints including login and MFA
+  - name: Authorization
+    description: Role and permission management endpoints
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user credentials
+      description: Validates user credentials and returns JWT tokens
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - accessToken
+                  - refreshToken
+                  - expiresIn
+                properties:
+                  accessToken:
+                    type: string
+                    description: JWT access token
+                  refreshToken:
+                    type: string
+                    description: Token for refreshing access token
+                  expiresIn:
+                    type: integer
+                    description: Token expiration time in seconds
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+      security: []
+
+  /auth/mfa/enroll:
+    post:
+      tags:
+        - Authentication
+      summary: Enroll in Multi-Factor Authentication
+      description: Initiates MFA enrollment process for a user
+      operationId: enrollMFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+              properties:
+                type:
+                  type: string
+                  enum: [totp, sms]
+                phoneNumber:
+                  type: string
+                  pattern: '^\+[1-9]\d{1,14}$'
+      responses:
+        '200':
+          description: MFA enrollment successful
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - secret
+                  - qrCode
+                properties:
+                  secret:
+                    type: string
+                    description: TOTP secret key
+                  qrCode:
+                    type: string
+                    description: QR code for TOTP setup
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationError'
+      security:
+        - jwt: []
+
+  /auth/mfa/verify:
+    post:
+      tags:
+        - Authentication
+      summary: Verify MFA token
+      description: Validates MFA token during authentication
+      operationId: verifyMFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  pattern: '^\d{6}$'
+      responses:
+        '200':
+          description: MFA verification successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationError'
+      security:
+        - jwt: []
+
+  /auth/roles:
+    get:
+      tags:
+        - Authorization
+      summary: Get user roles
+      description: Retrieves roles and permissions for authenticated user
+      operationId: getUserRoles
+      responses:
+        '200':
+          description: User roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - role
+                  - permissions
+                properties:
+                  role:
+                    type: string
+                    enum: [customer, admin]
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/AuthenticationError'
+        '403':
+          $ref: '#/components/responses/AuthorizationError'
+      security:
+        - jwt: []
+
+    post:
+      tags:
+        - Authorization
+      summary: Assign user roles
+      description: Updates role assignments for specified users
+      operationId: assignUserRoles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - role
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                role:
+                  type: string
+                  enum: [customer, admin]
+      responses:
+        '200':
+          description: Role assignment successful
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationError'
+        '403':
+          $ref: '#/components/responses/AuthorizationError'
+      security:
+        - jwt: []
+        - admin: []
+
+components:
+  schemas:
+    TokenResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+        refreshToken:
+          type: string
+          description: Token for refreshing access token
+        expiresIn:
+          type: integer
+          description: Token expiration time in seconds
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+  responses:
+    ValidationError:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - example:
+                  code: VALIDATION_ERROR
+                  message: Invalid request parameters
+                  details:
+                    - field: email
+                      message: Invalid email format
+
+    AuthenticationError:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - example:
+                  code: AUTHENTICATION_ERROR
+                  message: Invalid credentials
+
+    AuthorizationError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - example:
+                  code: AUTHORIZATION_ERROR
+                  message: Insufficient permissions
+
+    RateLimitError:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Time in seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - example:
+                  code: RATE_LIMIT_ERROR
+                  message: Too many requests
+                  retryAfter: 60
+
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token
+
+    admin:
+      type: apiKey
+      in: header
+      name: X-Admin-Key
+      description: Admin API key for privileged operations
