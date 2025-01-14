@@ -1,0 +1,99 @@
+# Prometheus Configuration v2.45.0
+# Core monitoring configuration for Matter satellite data product matching platform
+
+global:
+  # Global settings affecting all scrape configurations
+  scrape_interval: 15s     # Default scrape interval for all jobs
+  evaluation_interval: 15s # Interval for evaluating rules
+  scrape_timeout: 10s     # Timeout for scrape requests
+  
+  # Platform-specific external labels
+  external_labels:
+    environment: production
+    region: us-west-2
+    cluster: matter-platform
+    team: platform-ops
+
+# Rules files to load
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+# Scrape configurations
+scrape_configs:
+  # Kubernetes API server monitoring
+  - job_name: kubernetes-apiservers
+    kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+            - matter-platform
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      insecure_skip_verify: false
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+  # Kubernetes nodes monitoring
+  - job_name: kubernetes-nodes
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+
+  # Matter platform services monitoring
+  - job_name: matter-services
+    kubernetes_sd_configs:
+      - role: service
+        namespaces:
+          names:
+            - matter-platform
+    relabel_configs:
+      # Keep only services that have prometheus.io/scrape=true annotation
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      # Add service name as a label
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+              - matter-platform
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          regex: alertmanager
+          action: keep
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 15d
+    # Minimum storage of 2Gi as per requirements
+    retention.size: 2GB
+
+# Web configuration for Prometheus UI and API
+web:
+  # Security headers
+  security_headers:
+    x_content_type_options: nosniff
+    x_frame_options: DENY
+    x_xss_protection: "1; mode=block"
+  
+  # Health check endpoints
+  ready_endpoint: /ready
+  healthy_endpoint: /healthy
+  startup_endpoint: /-/ready
+
+# Remote write configuration (if needed for long-term storage)
+# remote_write:
+#   - url: <remote-storage-endpoint>
+
+# Remote read configuration (if needed for long-term storage)
+# remote_read:
+#   - url: <remote-storage-endpoint>
