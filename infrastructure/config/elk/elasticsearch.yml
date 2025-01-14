@@ -1,0 +1,176 @@
+# Elasticsearch 8.0 Configuration for Matter Platform
+# Purpose: Centralized logging and monitoring infrastructure
+
+#----------------------- Cluster Configuration ------------------------
+
+# Cluster identification
+cluster:
+  name: matter-logging-cluster
+  # Enhanced routing settings for optimal data distribution
+  routing:
+    allocation:
+      disk:
+        threshold_enabled: true
+        watermark:
+          low: "85%"
+          high: "90%"
+          flood_stage: "95%"
+      awareness:
+        attributes: zone
+      enable: all
+
+#----------------------- Node Configuration --------------------------
+
+# Node properties
+node:
+  name: ${HOSTNAME}
+  roles: 
+    - master
+    - data
+    - ingest
+  master: true
+  data: true
+  ingest: true
+  max_local_storage_nodes: 1
+  attr.zone: ${NODE_ZONE}
+
+#----------------------- Paths Configuration ------------------------
+
+# Data, logs and snapshot paths
+path:
+  data: /usr/share/elasticsearch/data
+  logs: /usr/share/elasticsearch/logs
+  repo: /usr/share/elasticsearch/snapshots
+
+#----------------------- Memory Configuration ----------------------
+
+# JVM and memory settings
+bootstrap.memory_lock: true
+
+#----------------------- Network Configuration ---------------------
+
+# Network binding and publishing
+network:
+  host: 0.0.0.0
+  bind_host: 
+    - 0.0.0.0
+  publish_host: ${HOSTNAME}
+
+# HTTP settings
+http:
+  port: 9200
+  compression: true
+  cors:
+    enabled: true
+    allow-origin: "https://*.matter.cloud"
+    allow-methods: "OPTIONS, HEAD, GET, POST, PUT, DELETE"
+    allow-headers: "X-Requested-With,Content-Type,Content-Length,Authorization"
+
+# Transport settings
+transport:
+  port: 9300
+  tcp:
+    compress: true
+    keep_alive: true
+    keep_idle: 60
+
+#----------------------- Security Configuration -------------------
+
+# X-Pack security settings
+xpack.security:
+  enabled: true
+  transport.ssl:
+    enabled: true
+    verification_mode: certificate
+    keystore.path: elastic-certificates.p12
+  
+  # Audit logging configuration
+  audit:
+    enabled: true
+    logfile.events.include: 
+      - authentication_success
+      - authentication_failure
+      - access_denied
+      - connection_denied
+  
+  # Authentication configuration
+  authc:
+    realms:
+      native:
+        native1:
+          order: 0
+          enabled: true
+          cache.ttl: 1h
+
+#----------------------- Monitoring Configuration ----------------
+
+# X-Pack monitoring settings
+xpack.monitoring:
+  enabled: true
+  collection:
+    enabled: true
+    interval: 30s
+    cluster.stats.timeout: 10s
+    node.stats.timeout: 10s
+  history.duration: 7d
+
+#----------------------- Performance Configuration --------------
+
+# Index and memory settings
+indices:
+  memory:
+    index_buffer_size: "30%"
+  queries.cache.size: "5%"
+  fielddata.cache.size: "15%"
+  recovery:
+    max_bytes_per_sec: "50mb"
+    concurrent_streams: 4
+
+# Thread pool settings
+thread_pool:
+  write:
+    size: 32
+  search:
+    size: 16
+  get:
+    size: 8
+
+#----------------------- Discovery Configuration ---------------
+
+# Discovery and cluster formation
+discovery:
+  seed_hosts: 
+    - ${DISCOVERY_SEED_HOSTS:}
+  zen:
+    minimum_master_nodes: ${NUMBER_OF_MASTERS:1}
+    fd:
+      ping_timeout: 30s
+      ping_retries: 3
+
+#----------------------- Gateway Configuration ----------------
+
+# Recovery settings
+gateway:
+  recover_after_nodes: ${RECOVER_AFTER_NODES:1}
+  expected_nodes: ${EXPECTED_NODES:1}
+  recover_after_time: "5m"
+
+#----------------------- Action Configuration ----------------
+
+# Action settings for stability
+action:
+  destructive_requires_name: true
+  auto_create_index: false
+
+#----------------------- Index Configuration ----------------
+
+# Index lifecycle and retention
+index:
+  lifecycle:
+    enabled: true
+    rollover:
+      max_age: "30d"
+      max_size: "50gb"
+  number_of_shards: 1
+  number_of_replicas: 1
+  refresh_interval: "30s"
