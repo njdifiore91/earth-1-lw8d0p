@@ -1,0 +1,48 @@
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Testing
+coverage
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Build outputs
+dist
+build
+**/*.map
+
+# Configuration
+.env*
+.npmrc
+.eslintrc*
+.prettierrc*
+jest.config.*
+tsconfig.*
+
+# Version control
+**/.git*
+.gitignore
+
+# IDE and OS
+.idea
+.vscode
+**/.DS_Store
+
+# Security
+**/*.pem
+**/*.key
+**/*.crt
+
+# Documentation
+**/*.md
+docs
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*
