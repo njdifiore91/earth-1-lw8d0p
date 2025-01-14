@@ -1,0 +1,178 @@
+name: Continuous Deployment
+
+on:
+  # Trigger on main branch pushes
+  push:
+    branches:
+      - main
+  # Manual workflow dispatch with environment selection
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: 'Target deployment environment'
+        options:
+          - staging
+          - production
+      deployment_type:
+        type: choice
+        description: 'Deployment scope'
+        options:
+          - full
+          - partial
+
+# Environment variables
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+  DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+  DEPLOYMENT_TIMEOUT: ${{ vars.DEPLOYMENT_TIMEOUT }}
+  HEALTH_CHECK_INTERVAL: ${{ vars.HEALTH_CHECK_INTERVAL }}
+
+jobs:
+  # Staging Deployment Job
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build, security-scan, compliance-check]
+    environment: staging
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 1200
+          role-session-name: GithubActionsDeployment
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registries: ${{ env.ECR_REGISTRY }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.25.0'
+
+      - name: Initialize Datadog metrics
+        uses: datadog/action-metrics@v1
+        with:
+          api-key: ${{ env.DATADOG_API_KEY }}
+          environment: staging
+
+      - name: Deploy to staging
+        run: |
+          chmod +x ./infrastructure/scripts/deploy.sh
+          ./infrastructure/scripts/deploy.sh staging ${{ github.sha }}
+        env:
+          ENVIRONMENT: staging
+          VERSION: ${{ github.sha }}
+          
+      - name: Validate deployment
+        run: |
+          ./infrastructure/scripts/deploy.sh validate_deployment staging
+        timeout-minutes: 10
+
+  # Production Deployment Job
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: 
+      name: production
+      url: https://api.matter.com
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 1800
+          role-session-name: GithubActionsProduction
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registries: ${{ env.ECR_REGISTRY }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.25.0'
+
+      - name: Initialize production metrics
+        uses: datadog/action-metrics@v1
+        with:
+          api-key: ${{ env.DATADOG_API_KEY }}
+          environment: production
+
+      - name: Execute blue-green deployment
+        run: |
+          chmod +x ./infrastructure/scripts/deploy.sh
+          ./infrastructure/scripts/deploy.sh production ${{ github.sha }}
+        env:
+          ENVIRONMENT: production
+          VERSION: ${{ github.sha }}
+          DEPLOYMENT_TYPE: blue-green
+
+      - name: Validate production deployment
+        run: |
+          ./infrastructure/scripts/deploy.sh validate_deployment production
+        timeout-minutes: 15
+
+  # Rollback Job (triggered on failure)
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: failure()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.25.0'
+
+      - name: Execute rollback
+        run: |
+          chmod +x ./infrastructure/scripts/deploy.sh
+          ./infrastructure/scripts/deploy.sh execute_rollback ${{ github.event.inputs.environment || 'staging' }} ${{ github.sha }}
+        env:
+          ROLLBACK_VERSION: ${{ github.event.before }}
+
+      - name: Notify rollback status
+        if: always()
+        uses: datadog/action-metrics@v1
+        with:
+          api-key: ${{ env.DATADOG_API_KEY }}
+          metric-name: deployment.rollback
+          metric-value: ${{ job.status == 'success' && 1 || 0 }}
+          environment: ${{ github.event.inputs.environment || 'staging' }}
