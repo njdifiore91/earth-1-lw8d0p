@@ -1,0 +1,209 @@
+/* Map Styles - v2.x
+ * Core styles for map interface components and Mapbox GL JS customization
+ * Implements WCAG 2.1 Level AA compliance with 4.5:1 minimum contrast ratio
+ */
+
+@import 'mapbox-gl/dist/mapbox-gl.css';
+
+/* Global Variables */
+:root {
+  --map-height: 70vh;
+  --map-control-bg: rgba(255, 255, 255, 0.9);
+  --map-control-border: 1px solid #e0e0e0;
+  --map-control-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --map-primary-color: #1976d2;
+  --map-secondary-color: #424242;
+  --map-text-color: #212121;
+  --map-background-color: #ffffff;
+}
+
+/* Main Map Container */
+.map-container {
+  position: relative;
+  width: 100%;
+  height: var(--map-height);
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--map-background-color);
+}
+
+/* Map Controls Container */
+.map-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  background: var(--map-control-bg);
+  border: var(--map-control-border);
+  border-radius: 4px;
+  box-shadow: var(--map-control-shadow);
+  transition: all 0.3s ease;
+}
+
+/* Drawing Tools Container */
+.draw-tools {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 1;
+  background: var(--map-control-bg);
+  border: var(--map-control-border);
+  border-radius: 4px;
+  padding: 8px;
+  transition: all 0.3s ease;
+}
+
+/* Layer Control Panel */
+.layer-control {
+  padding: 12px;
+  min-width: 200px;
+}
+
+/* Layer Control Items */
+.layer-control__item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  color: var(--map-text-color);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.layer-control__item:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+}
+
+/* Map Control Buttons */
+.map-control__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--map-control-bg);
+  color: var(--map-secondary-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.map-control__button:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+}
+
+.map-control__button:focus {
+  outline: 2px solid var(--map-primary-color);
+  outline-offset: -2px;
+}
+
+/* Drawing Tool Buttons */
+.draw-tools__button {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--map-secondary-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.draw-tools__button:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+}
+
+.draw-tools__button.active {
+  background-color: rgba(25, 118, 210, 0.12);
+  color: var(--map-primary-color);
+}
+
+/* Accessibility Enhancements */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Focus Indicators */
+:focus-visible {
+  outline: 2px solid var(--map-primary-color);
+  outline-offset: 2px;
+}
+
+/* Responsive Design - Tablet */
+@media screen and (max-width: 992px) {
+  .map-container {
+    height: 50vh;
+  }
+
+  .map-controls {
+    width: 100%;
+    bottom: 0;
+    right: 0;
+    top: auto;
+    border-radius: 4px 4px 0 0;
+  }
+
+  .layer-control {
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+}
+
+/* Responsive Design - Mobile */
+@media screen and (max-width: 576px) {
+  .map-container {
+    height: 40vh;
+  }
+
+  .draw-tools {
+    bottom: 60px;
+    left: 0;
+    top: auto;
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+  }
+
+  .draw-tools__button {
+    padding: 12px;
+  }
+
+  .map-controls {
+    padding: 8px;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (forced-colors: active) {
+  .map-controls,
+  .draw-tools,
+  .layer-control {
+    border: 2px solid CanvasText;
+  }
+
+  .map-control__button:focus,
+  .draw-tools__button:focus {
+    outline: 2px solid CanvasText;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .map-container {
+    height: 100%;
+    page-break-inside: avoid;
+  }
+
+  .map-controls,
+  .draw-tools {
+    display: none;
+  }
+}
