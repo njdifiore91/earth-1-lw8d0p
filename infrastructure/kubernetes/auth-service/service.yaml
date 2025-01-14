@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: matter-platform
+  labels:
+    app: matter-satellite-platform
+    service: auth-service
+    environment: production
+    component: security
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
+    prometheus.io/path: "/metrics"
+    service.beta.kubernetes.io/monitor: "true"
+    security.matter.com/restricted: "true"
+    # Security annotations for enhanced monitoring and access control
+    security.matter.com/tls-required: "true"
+    security.matter.com/network-zone: "restricted"
+    # Service mesh integration
+    sidecar.istio.io/inject: "true"
+    # Load balancing configuration
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    # Traffic management
+    service.beta.kubernetes.io/traffic-policy: "Local"
+spec:
+  type: ClusterIP  # Internal cluster access only
+  ports:
+    - port: 3000  # Service port
+      targetPort: 3000  # Container port
+      protocol: TCP
+      name: http
+  selector:
+    service: auth-service
+    component: security
+    tier: backend
+  sessionAffinity: ClientIP  # Maintain session affinity
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hour session timeout
+  # Enhanced security and reliability settings
+  publishNotReadyAddresses: false  # Only expose ready pods
+  internalTrafficPolicy: Local  # Prefer local node routing
