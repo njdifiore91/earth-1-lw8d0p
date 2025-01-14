@@ -1,0 +1,272 @@
+# Helm values configuration for Matter Platform
+# Kubernetes version: 1.25+
+# Cert-manager version: 1.12.0
+
+global:
+  environment: production
+  region:
+    primary: us-west-2
+    secondary: us-east-1
+  
+  image:
+    registry: matter.azurecr.io
+    tag: latest
+    pullPolicy: Always
+    scanOnPush: true
+  
+  ingress:
+    enabled: true
+    className: nginx
+    domain: matter-platform.com
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+      kubernetes.io/ingress.class: nginx
+      kubernetes.io/tls-acme: "true"
+    tls:
+      enabled: true
+      secretName: matter-tls
+      minimumProtocolVersion: TLSv1.3
+  
+  security:
+    networkPolicies: true
+    podSecurityPolicies: true
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      capabilities:
+        drop: ["ALL"]
+
+services:
+  auth:
+    enabled: true
+    name: auth-service
+    image:
+      repository: matter.azurecr.io/auth-service
+      tag: latest
+    replicas:
+      min: 3
+      max: 10
+      targetCPUUtilization: 75
+    ports:
+      http: 8080
+      metrics: 9090
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    healthCheck:
+      path: /health
+      port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 3
+    monitoring:
+      enabled: true
+      scrapeInterval: 30s
+      alerting:
+        rules:
+          - alert: HighErrorRate
+            expr: error_rate > 5
+            for: 5m
+    env:
+      JWT_SECRET:
+        secretKeyRef:
+          name: auth-secrets
+          key: jwt-secret
+      AUTH0_DOMAIN:
+        value: matter.auth0.com
+      AUTH0_AUDIENCE:
+        value: https://api.matter-platform.com
+
+  search:
+    enabled: true
+    name: search-service
+    image:
+      repository: matter.azurecr.io/search-service
+      tag: latest
+    replicas:
+      min: 3
+      max: 12
+      targetCPUUtilization: 70
+    ports:
+      http: 8081
+      metrics: 9091
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+    healthCheck:
+      path: /health
+      port: 8081
+      initialDelaySeconds: 45
+      periodSeconds: 15
+      failureThreshold: 3
+    monitoring:
+      enabled: true
+      scrapeInterval: 30s
+      alerting:
+        rules:
+          - alert: HighLatency
+            expr: http_request_duration_seconds > 3
+            for: 5m
+    env:
+      POSTGRES_HOST:
+        value: matter-db.default.svc.cluster.local
+      REDIS_HOST:
+        value: matter-cache.default.svc.cluster.local
+
+  planning:
+    enabled: true
+    name: planning-service
+    image:
+      repository: matter.azurecr.io/planning-service
+      tag: latest
+    replicas:
+      min: 4
+      max: 15
+      targetCPUUtilization: 80
+    ports:
+      http: 8082
+      metrics: 9092
+    resources:
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+    healthCheck:
+      path: /health
+      port: 8082
+      initialDelaySeconds: 60
+      periodSeconds: 20
+      failureThreshold: 3
+    monitoring:
+      enabled: true
+      scrapeInterval: 30s
+      alerting:
+        rules:
+          - alert: HighComputeUsage
+            expr: cpu_usage > 90
+            for: 10m
+    env:
+      EARTHN_API_ENDPOINT:
+        value: https://earthn-simulator.matter.internal
+      EARTHN_API_KEY:
+        secretKeyRef:
+          name: planning-secrets
+          key: earthn-api-key
+
+  visualization:
+    enabled: true
+    name: visualization-service
+    image:
+      repository: matter.azurecr.io/visualization-service
+      tag: latest
+    replicas:
+      min: 3
+      max: 10
+      targetCPUUtilization: 75
+    ports:
+      http: 8083
+      metrics: 9093
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+    healthCheck:
+      path: /health
+      port: 8083
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 3
+    monitoring:
+      enabled: true
+      scrapeInterval: 30s
+      alerting:
+        rules:
+          - alert: HighMemoryUsage
+            expr: memory_usage > 85
+            for: 5m
+    env:
+      MAPBOX_API_KEY:
+        secretKeyRef:
+          name: visualization-secrets
+          key: mapbox-api-key
+      REDIS_HOST:
+        value: matter-cache.default.svc.cluster.local
+
+persistence:
+  enabled: true
+  storageClass: gp2
+  size: 100Gi
+  backup:
+    enabled: true
+    schedule: "0 */6 * * *"
+    retention: 7d
+
+monitoring:
+  prometheus:
+    enabled: true
+    retention: 15d
+    storageSize: 50Gi
+  grafana:
+    enabled: true
+    adminPassword:
+      secretKeyRef:
+        name: grafana-secrets
+        key: admin-password
+    persistence:
+      enabled: true
+      size: 10Gi
+
+networkPolicy:
+  enabled: true
+  ingressRules:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nginx-ingress
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+tolerations:
+  - key: "node.kubernetes.io/unreachable"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 30
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - auth-service
+                  - search-service
+                  - planning-service
+                  - visualization-service
+          topologyKey: kubernetes.io/hostname
