@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+  namespace: matter
+  labels:
+    app: search-service
+    component: backend
+    part-of: matter-platform
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: search-service
+  sessionAffinity: None
