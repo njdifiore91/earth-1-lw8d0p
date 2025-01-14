@@ -1,0 +1,105 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "matter.fullname" . }}
+  labels:
+    {{- include "matter.labels" . | nindent 4 }}
+  annotations:
+    # Ingress Controller Configuration
+    kubernetes.io/ingress.class: {{ .Values.global.ingress.className | quote }}
+    cert-manager.io/cluster-issuer: {{ .Values.global.ingress.annotations.cert-manager.io/cluster-issuer | quote }}
+    
+    # TLS Security Configuration
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-min-version: "TLSv1.3"
+    nginx.ingress.kubernetes.io/ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+    nginx.ingress.kubernetes.io/ssl-prefer-server-ciphers: "true"
+    
+    # Security Headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';";
+    
+    # Request Handling
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ .Values.global.ingress.annotations.nginx.ingress.kubernetes.io/proxy-body-size | quote }}
+    nginx.ingress.kubernetes.io/proxy-read-timeout: {{ .Values.global.ingress.annotations.nginx.ingress.kubernetes.io/proxy-read-timeout | quote }}
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    
+    # CORS Configuration
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+    
+    # Rate Limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-rpm: "1000"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+    
+    # Load Balancing
+    nginx.ingress.kubernetes.io/load-balance: "least_conn"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "MATTER_AFFINITY"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "86400"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+
+spec:
+  tls:
+    - hosts:
+        - {{ .Values.global.ingress.domain }}
+      secretName: {{ template "matter.tlsSecretName" . }}
+  rules:
+    - host: {{ .Values.global.ingress.domain }}
+      http:
+        paths:
+          # Auth Service
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ template "matter.fullname" . }}-auth
+                port:
+                  number: {{ .Values.services.auth.ports.http }}
+
+          # Search Service
+          - path: /api/search
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ template "matter.fullname" . }}-search
+                port:
+                  number: {{ .Values.services.search.ports.http }}
+
+          # Planning Service
+          - path: /api/planning
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ template "matter.fullname" . }}-planning
+                port:
+                  number: {{ .Values.services.planning.ports.http }}
+
+          # Visualization Service
+          - path: /api/visualization
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ template "matter.fullname" . }}-visualization
+                port:
+                  number: {{ .Values.services.visualization.ports.http }}
+
+          # Health Check Endpoint
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: {{ template "matter.fullname" . }}-health
+                port:
+                  number: 80
